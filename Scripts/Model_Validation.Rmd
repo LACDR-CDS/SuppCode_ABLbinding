@@ -1,0 +1,366 @@
+---
+title: "Model_Validation"
+output: html_document
+date: "2025-06-03"
+---
+
+
+This document contains the code to reproduce all supplementary Figures of our paper as well as some additional figures to validate our approach of estimating $K_D$ estimates from titration binding curves
+
+```{r}
+#Switch to False if you wish to perform fitting of all artificial data from scratch
+#Keep at True if you wish to skip the computationally expensive simulations and read in previously simulated results
+load_results = T
+```
+
+```{r}
+library(latex2exp)
+library(deSolve)
+library(clinPK)
+library(ggplot2)
+library(dplyr)
+library(minpack.lm)
+library(tidyr)
+library(ggbeeswarm)
+library(Hmisc)
+library(scales)
+library(pheatmap)
+source('Functions.R')
+```
+
+```{r}
+#Set seed in order to ensure reproducability
+set.seed(20250602)
+```
+
+
+---------
+Figure 3a
+---------
+
+Provides an overview of the approach for estimating $K_D$
+```{r}
+singlemodelFit(MFI_df = Hap1WT_df, k2_guess = .2, SF_guess = 100, celltype = 'Hap1')
+```
+
+
+----------------------
+Supplemental Figure 3a
+----------------------
+
+```{r}
+#Generate dose-response data for L_init = 2
+range.dose = seq(0,5,.01)
+doseresp1 = matrix(nrow=length(range.dose), ncol=4)
+j=1
+pars1 = c(k1=1.0, k2=0.1)
+for (i in range.dose) {
+  inistate = c(A=i, L=2, C=0)
+  out = ode(y=inistate, times=seq(0,100,1), func=affinity.ODE.1ligand, parms=pars1)
+  doseresp1[j,] = c(i, out[nrow(out),4], out[nrow(out),4]/(out[nrow(out),3]+out[nrow(out),4]), out[nrow(out),2])
+  #doseresp1[j,] = c(i, out[3,4] + out[3,6])
+  j=j+1
+}
+
+#Generate dose-response data for L_init = 5
+doseresp2 = matrix(nrow=length(range.dose), ncol=4)
+j=1
+pars2 = c(k1=1.0, k2=0.1)
+for (i in range.dose) {
+  inistate = c(A=i, L=0.5, C=0)
+  out = ode(y=inistate, times=seq(0,100,1), func=affinity.ODE.1ligand, parms=pars2)
+  doseresp2[j,] = c(i, out[nrow(out),4], out[nrow(out),4]/(out[nrow(out),3]+out[nrow(out),4]), out[nrow(out),2])
+  #doseresp2[j,] = c(i, out[3,4] + out[3,6])
+  j=j+1
+}
+
+doseresp1 = as.data.frame(doseresp1)
+doseresp2 = as.data.frame(doseresp2)
+names(doseresp1) = names(doseresp2) = c('A_ini', 'C_eq', 'Frac_boundL', 'A_eq')
+
+#identify the inflection points of the curves
+CI_AiniWT = doseresp1$A_ini[which(abs(doseresp1$C_eq - 1) == min(abs(doseresp1$C_eq - 1)))]
+CI_AiniKO = doseresp2$A_ini[which(abs(doseresp2$C_eq - .25) == min(abs(doseresp2$C_eq - .25)))]
+CI_AeqWT = doseresp1$A_eq[which(abs(doseresp1$C_eq - 1) == min(abs(doseresp1$C_eq - 1)))]
+CI_AeqKO = doseresp2$A_eq[which(abs(doseresp2$C_eq - .25) == min(abs(doseresp2$C_eq - .25)))]
+
+#Add a group column for coloring
+doseresp1$`initial [L]` = "2"
+doseresp2$`initial [L]` = ".5"
+
+#Combine both into one data frame
+doseresp_combined = rbind(doseresp1, doseresp2)
+
+ggplot(doseresp_combined, aes(x = A_ini, y = C_eq, color = `initial [L]`)) +
+  geom_line(linewidth = 1.5) +
+  scale_color_manual(values = c("2" = "#486a8b", ".5" = "#a55d5d")) +
+  labs(x = TeX('$\\[A_{init}\\]$ (a.u.)'), y = TeX('$\\[C_{eq}\\]$ (a.u.)')) +
+  ylim(0, 2) +
+  geom_hline(yintercept = c(1), linetype = "dashed", color = "#486a8b", linewidth = 1) +
+  geom_vline(xintercept = CI_AiniWT, linetype = "dashed", color = "#486a8b", linewidth = 1) +
+  geom_hline(yintercept = c(0.25), linetype = "dashed", color = "#a55d5d", linewidth = 1) +
+  geom_vline(xintercept = CI_AiniKO, linetype = "dashed", color = "#a55d5d", linewidth = 1) +
+  geom_point(aes(x = CI_AiniKO, y = 0.25), color = "#a55d5d", size = 4) + #Add large dot
+  annotate("text", x = CI_AiniKO + .1, y = 0.25 - .08, label = TeX(sprintf("$EC_{50}$ = %.2f", CI_AiniKO)), hjust = 0, size = 4, fontface = 'bold') + #Add text annotation to the right
+  geom_point(aes(x = CI_AiniWT, y = 1), color = "#486a8b", size = 4) + #Add large dot
+  annotate("text", x = CI_AiniWT + .1, y = 1 - .08, label = TeX(sprintf("$EC_{50}$ = %.2f", CI_AiniWT)), hjust = 0, size = 4) + #Add text annotation to the right
+  theme_classic()
+
+ggsave('../Figures/Supporting_figures/EC50pred_iniCurve.png', width = 5, height = 3, dpi = 600)
+
+ggplot(doseresp_combined, aes(x = A_eq, y = C_eq, color = `initial [L]`)) +
+  geom_line(linewidth = 1.5) +
+  scale_color_manual(values = c("2" = "#486a8b", ".5" = "#a55d5d")) +
+  labs(x = TeX('$\\[A_{init}\\]$ (a.u.)'), y = TeX('$\\[C_{eq}\\]$ (a.u.)')) +
+  ylim(0, 2) +
+  geom_hline(yintercept = c(1), linetype = "dashed", color = "#486a8b", linewidth = 1) +
+  geom_vline(xintercept = 0.1, linetype = "solid", color = "#486a8b", linewidth = 1) +
+  geom_hline(yintercept = c(0.25), linetype = "dashed", color = "#a55d5d", linewidth = 1) +
+  geom_vline(xintercept = .1, linetype = "dashed", color = "#a55d5d", linewidth = 1.2) +
+  geom_point(aes(x = CI_AeqKO, y = 0.25), color = "#a55d5d", size = 4) + #Add large dot
+  annotate("text", x = CI_AeqKO + .1, y = 0.25 - .08, label = TeX(sprintf("$EC_{50}$ = %.2f", CI_AeqKO)), hjust = 0, size = 4, fontface = 'bold') + #Add text annotation to the right
+  geom_point(aes(x = CI_AeqWT, y = 1), color = "#486a8b", size = 4) + #Add large dot
+  annotate("text", x = CI_AeqWT + .1, y = 1 - .08, label = TeX(sprintf("$EC_{50}$ = %.2f", CI_AeqWT)), hjust = 0, size = 4) + #Add text annotation to the right
+  theme_classic()
+
+ggsave('../Figures/Supporting_figures/EC50pred_eqCurve.png', width = 5, height = 3, dpi = 600)
+```
+
+
+------------------------
+Supplemental Figure 3b-c
+------------------------
+
+```{r}
+check_maxbias(SF = 350, varconstant_within = 0, varconstant_between =0, k1 = 1, k2 = 100, L_init = 40, nrep = 1)
+check_maxbias(SF = 350, varconstant_within = 0, varconstant_between =0, k1 = 1, k2 = 1, L_init = 40, nrep = 1)
+check_maxbias(SF = 350, varconstant_within = 0, varconstant_between =0, k1 = 1, k2 = .01, L_init = 40, nrep = 1)
+
+check_maxbias(SF = 350, varconstant_within = 0, varconstant_between =0, k1 = 1, k2 = 100, L_init = 40, nrep = 1, top5 = T)
+check_maxbias(SF = 350, varconstant_within = 0, varconstant_between =0, k1 = 1, k2 = 1, L_init = 40, nrep = 1, top5 = T)
+check_maxbias(SF = 350, varconstant_within = 0, varconstant_between =0, k1 = 1, k2 = .01, L_init = 40, nrep = 1, top5 = T)
+```
+
+
+----------------------
+Supplemental Figure 3d
+----------------------
+
+```{r}
+k2_range = exp(seq(log(0.01), log(500), length.out = 500))
+k2_range = 10^seq(log10(0.01), log10(500), length.out = 500)
+
+deviance = deviance5 = numeric(length(k2_range))
+
+for(i in 1:length(k2_range)){
+  deviance[i] = check_maxbias(k1 = 1, k2 = k2_range[i], top5 = F, plot = F)
+  deviance5[i] = check_maxbias(k1 = 1, k2 = k2_range[i], top5 = T, plot = F)
+}
+
+df = data.frame(
+  k2 = k2_range,
+  `Full range` = deviance,
+  `Highest 5` = deviance5,
+  check.names = F
+)
+
+df_long = pivot_longer(df, cols = c(`Full range`, `Highest 5`), names_to = "type", values_to = "value")
+
+#Create plot
+full_vs_high5 = ggplot(df_long, aes(x = k2, y = value, color = type)) +
+  geom_line(linewidth = 1.1) +
+  geom_hline(aes(yintercept = 14000, color = "True max"), 
+             linetype = "dashed", linewidth = 1.1) +
+  scale_x_log10(labels = function(x) format(x, scientific = FALSE)) +
+  scale_color_manual(
+    name = "Fitted conc. range",
+    values = c("Full range" = "#486a8b", 
+               "Highest 5"  = "#a55d5d", 
+               "True max"  = "black")
+  ) +
+  coord_cartesian(ylim = c(13500, 15500)) +
+  labs(
+    x = TeX('$K_D$ (a.u.)'), 
+    y = TeX('$MFI_{max}$')
+  ) +
+  theme_classic()
+
+print(full_vs_high5)
+
+ggsave('../Figures/Supporting_figures/full_vs_high5.1.png', full_vs_high5, width = 5, height = 3)
+
+```
+
+
+--------------------------
+Generating artificial data
+--------------------------
+
+```{r}
+#Baseline artificial data
+art0WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 90, L_init = 40)
+art0KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 180, L_init = 10)
+
+#Initial concentrations of L are the same
+art1WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 90, L_init = 40)
+art1KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 180, L_init = 40)
+
+#Reduced scaling factor
+art2WT_list = create_art_df_list(n = 10, SF = 150, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 90, L_init = 40)
+art2KO_list = create_art_df_list(n = 10, SF = 150, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 180, L_init = 10)
+
+#Increased variance
+art3WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .02, varconstant_between = .2, k1 = 3, k2 = 90, L_init = 40)
+art3KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .02, varconstant_between = .2, k1 = 3, k2 = 180, L_init = 10)
+
+#Different KDs
+art4WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 160, L_init = 40)
+art4KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 40, L_init = 10)
+
+#Estimating paramater values from artificial data
+
+if(!load_results){
+  out_art0 = oneligand_fit_list(art0WT_list, art0KO_list, label_WT = "art0_WT", label_KO = "art0_KO", celltype = 'art0')
+  out_art1 = oneligand_fit_list(art1WT_list, art1KO_list, label_WT = "art1_WT", label_KO = "art1_KO", celltype = 'art1')
+  out_art2 = oneligand_fit_list(art2WT_list, art2KO_list, label_WT = "art2_WT", label_KO = "art2_KO", celltype = 'art2')
+  out_art3 = oneligand_fit_list(art3WT_list, art3KO_list, label_WT = "art3_WT", label_KO = "art3_KO", celltype = 'art3')
+  out_art4 = oneligand_fit_list(art4WT_list, art4KO_list, label_WT = "art4_WT", label_KO = "art4_KO", celltype = 'art4')
+  
+  saveRDS(out_art0, '../Results/out_art0.rds')
+  saveRDS(out_art1, '../Results/out_art1.rds')
+  saveRDS(out_art2, '../Results/out_art2.rds')
+  saveRDS(out_art3, '../Results/out_art3.rds')
+  saveRDS(out_art4, '../Results/out_art4.rds')
+}else{
+  out_art0 = readRDS('../Results/out_art0.rds')
+  out_art1 = readRDS('../Results/out_art1.rds')
+  out_art2 = readRDS('../Results/out_art2.rds')
+  out_art3 = readRDS('../Results/out_art3.rds')
+  out_art4 = readRDS('../Results/out_art4.rds')
+}
+```
+
+
+----------------------
+Supplemental Figure 3e
+----------------------
+
+Show that artificial data mimics experimental data
+```{r}
+#Hap1WT_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'Hap1 WT', molar_weight_AB = 146000)
+
+ggplot(Hap1WT_df, aes(x = conc, y = MFI, shape = replicate)) +
+  geom_point(size = 2, col = 'grey') + 
+  labs(title = 'Hap1 WT') +
+  scale_x_log10() +
+  theme_classic() + 
+  theme(panel.grid = element_blank())
+
+ggsave('../Figures/Supporting_figures/Hap1WT_datareps.png', width = 4, height = 3, dpi = 500)
+
+ggplot(art0WT_list[[10]], aes(x = conc, y = MFI, shape = replicate)) +
+  geom_point(size = 2, col = 'grey') + 
+  labs(title = 'set0 WT') +
+  scale_x_log10() +
+  theme_classic() + 
+  theme(panel.grid = element_blank())
+
+ggsave('../Figures/Supporting_figures/art0.1WT_datareps.png', width = 4, height = 3, dpi = 500)
+```
+
+
+------------------------
+Supplemental Figure 3g-i
+------------------------
+
+```{r, warning=F}
+#Prepare data for plotting
+
+dfs = list(out_art0, out_art1, out_art2, out_art3, out_art4)
+names(dfs) = paste0("df", 0:4)
+
+#Combine into long format
+long_df = bind_rows(dfs, .id = "source")
+
+#Prepare long format for k2
+k2_long = long_df %>%
+  filter(source %in% c('df0', 'df1', 'df2', 'df3')) %>%
+  select(source, k2_WT, k2_KO) %>%
+  pivot_longer(cols = c(k2_WT, k2_KO),
+               names_to = "genotype",
+               names_prefix = "k2_",
+               values_to = "k2") %>%
+  mutate(pair = paste0("pair", source))
+
+#Same for max
+max_long = long_df %>%
+  filter(source %in% c('df0','df3', 'df4')) %>%
+  select(source, WT_max, KO_max) %>%
+  pivot_longer(
+    cols = c(WT_max, KO_max),
+    names_to = "genotype",
+    values_to = "max"
+  ) %>%
+  mutate(
+    genotype = case_when(
+      grepl("^WT", genotype) ~ "WT",
+      grepl("^KO", genotype) ~ "KO"
+    ),
+    pair = paste0("pair", source)
+  )
+
+plot_single_metric(long_df[long_df$source != 'df2',], "SF", ref_line = 350, log_scale = T)
+plot_single_metric(long_df, "AIC", log_scale = F)
+
+plot_paired_metric(k2_long, "k2", ylab = TeX('$K_D$ estimates'), ref_lineWT = 30, ref_lineKO = 60)  #No ref line
+plot_paired_metric(max_long, "max", ylab = TeX('$MFI_{max}$ estimates'), ref_lineWT = 350 * 40, ref_lineKO = 350 * 10)
+```
+
+
+--------------------------------------------------
+Extra check to ensure fitting algorithm works well
+--------------------------------------------------
+
+See if fitting algorithm works properly by examining RMSE landscape over a range of k2 and SF values
+```{r}
+MFI_df = Hap1WT_df
+k2_guess = .2
+SF_guess = 100
+celltype = 'Hap1'
+
+MFI_max = determine_max(MFI_df, label = celltype, returnplot = F)
+
+k2s = 0:99
+SFs = 0:99
+
+RMSEs = matrix(nrow = length(k2s), ncol = length(SFs))
+
+for (i in 1:length(k2s)) {
+  for (j in 1:length(SFs)) {
+    RMSEs[i, j] = tryCatch({
+      resids = residual_function1(
+        params = c(k2 = k2s[i], SF = SFs[j]),
+        A_init = MFI_df$conc,
+        MFI_obs = MFI_df$MFI,
+        k1 = 1,
+        MFImax = MFI_max
+      )
+      round(sqrt(mean(resids^2)), digits = 1)
+    }, error = function(e) {
+      NA
+    })
+  }
+}
+
+
+pheatmap(RMSEs, cluster_rows = F, cluster_cols = F, labels_row = 'k2', labels_col = 'SF')
+
+min_index = which(RMSEs[,-1] == min(RMSEs[,-1]), arr.ind = T) + c(0,1)
+original_min = RMSEs[min_index]
+RMSEs[min_index] = 1500
+
+
+pheatmap(RMSEs, cluster_rows = F, cluster_cols = F, labels_row = 'k2', labels_col = 'SF')
+```
+
+

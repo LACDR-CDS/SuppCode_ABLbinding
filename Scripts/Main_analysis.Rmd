@@ -1,0 +1,68 @@
+---
+title: "Untitled"
+author: "Levi Winkelman"
+date: "2025-04-03"
+output: html_document
+---
+
+In this document, we calculate the $K_D$ estimates for antibody-ligand binding using flow cytometry data for WT and KO cell lines simultaneously
+
+
+```{r}
+library(latex2exp)
+library(deSolve)
+library(clinPK)
+library(ggplot2)
+library(dplyr)
+library(minpack.lm)
+library(tidyr)
+library(ggbeeswarm)
+library(Hmisc)
+source('Functions.R')
+```
+
+-------------------
+Reading in the data
+-------------------
+
+For each cell line of the experimental data, read in the data for the WT and KO respectively
+```{r, warning=F}
+B16WT_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'B16 WT', molar_weight_AB = 75000)
+B16KO_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'B16 QPCTL KO', molar_weight_AB = 75000)
+
+A375WT_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'A375 WT', molar_weight_AB = 146000)
+A375KO_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'A375 QPCTL KO', molar_weight_AB = 146000)
+
+DaudiWT_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'Daudi WT', molar_weight_AB = 146000)
+DaudiKO_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'Daudi QPCTL KO', molar_weight_AB = 146000)
+
+Hap1WT_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'Hap1 WT', molar_weight_AB = 146000)
+Hap1KO_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'Hap1 QPCTL KO', molar_weight_AB = 146000)
+```
+
+---------------------------------------
+Figure 3B + 5A + Supplemental Figure 3j
+---------------------------------------
+
+For each cell line, we compare the fit of the full model to that of the reduced model
+```{r,warning=F}
+compare_models(B16WT_df, B16KO_df, label_WT = "B16_WT", label_KO = "B16_KO", celltype = 'B16')
+compare_models(A375WT_df, A375KO_df, label_WT = "A375_WT", label_KO = "A375_KO", celltype = 'A375')
+compare_models(Hap1WT_df, Hap1KO_df, label_WT = "Hap1_WT", label_KO = "Hap1_KO", celltype = 'Hap1')
+compare_models(DaudiWT_df, DaudiKO_df, label_WT = "Daudi_WT", label_KO = "Daudi_KO", celltype = 'Daudi')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
