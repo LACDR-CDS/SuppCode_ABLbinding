@@ -38,8 +38,10 @@ set.seed(20250602)
 Figure 3a
 ---------
 
-Provides an overview of the approach for estimating $K_D$
-```{r}
+Provides an overview of the approach for estimating $K_D$ examplified by the Hap1 dataset
+```{r,warning=F}
+Hap1WT_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'Hap1 WT', molar_weight_AB = 146000)
+
 singlemodelFit(MFI_df = Hap1WT_df, k2_guess = .2, SF_guess = 100, celltype = 'Hap1')
 ```
 
@@ -48,7 +50,7 @@ singlemodelFit(MFI_df = Hap1WT_df, k2_guess = .2, SF_guess = 100, celltype = 'Ha
 Supplemental Figure 3a
 ----------------------
 
-```{r}
+```{r,warning=F}
 #Generate dose-response data for L_init = 2
 range.dose = seq(0,5,.01)
 doseresp1 = matrix(nrow=length(range.dose), ncol=4)
@@ -197,29 +199,43 @@ Generating artificial data
 --------------------------
 
 ```{r}
-#Baseline artificial data
-art0WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 90, L_init = 40)
-art0KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 180, L_init = 10)
-
-#Initial concentrations of L are the same
-art1WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 90, L_init = 40)
-art1KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 180, L_init = 40)
-
-#Reduced scaling factor
-art2WT_list = create_art_df_list(n = 10, SF = 150, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 90, L_init = 40)
-art2KO_list = create_art_df_list(n = 10, SF = 150, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 180, L_init = 10)
-
-#Increased variance
-art3WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .02, varconstant_between = .2, k1 = 3, k2 = 90, L_init = 40)
-art3KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .02, varconstant_between = .2, k1 = 3, k2 = 180, L_init = 10)
-
-#Different KDs
-art4WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 160, L_init = 40)
-art4KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 40, L_init = 10)
-
-#Estimating paramater values from artificial data
-
 if(!load_results){
+  
+  #Generating artificial data
+  
+  #Baseline artificial data
+  art0WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 90, L_init = 40)
+  art0KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 180, L_init = 10)
+  
+  #Initial concentrations of L are the same
+  art1WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 90, L_init = 40)
+  art1KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 180, L_init = 40)
+  
+  #Reduced scaling factor
+  art2WT_list = create_art_df_list(n = 10, SF = 150, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 90, L_init = 40)
+  art2KO_list = create_art_df_list(n = 10, SF = 150, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 180, L_init = 10)
+  
+  #Increased variance
+  art3WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .02, varconstant_between = .2, k1 = 3, k2 = 90, L_init = 40)
+  art3KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .02, varconstant_between = .2, k1 = 3, k2 = 180, L_init = 10)
+  
+  #Different KDs
+  art4WT_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 160, L_init = 40)
+  art4KO_list = create_art_df_list(n = 10, SF = 350, varconstant_within = .01, varconstant_between = .1, k1 = 3, k2 = 40, L_init = 10)
+  
+  saveRDS(art0WT_list, '../Data/Artificial_Data/art0WT_list.rds')
+  saveRDS(art1WT_list, '../Data/Artificial_Data/art1WT_list.rds')
+  saveRDS(art2WT_list, '../Data/Artificial_Data/art2WT_list.rds')
+  saveRDS(art3WT_list, '../Data/Artificial_Data/art3WT_list.rds')
+  saveRDS(art4WT_list, '../Data/Artificial_Data/art4WT_list.rds')
+  saveRDS(art0KO_list, '../Data/Artificial_Data/art0KO_list.rds')
+  saveRDS(art1KO_list, '../Data/Artificial_Data/art1KO_list.rds')
+  saveRDS(art2KO_list, '../Data/Artificial_Data/art2KO_list.rds')
+  saveRDS(art3KO_list, '../Data/Artificial_Data/art3KO_list.rds')
+  saveRDS(art4KO_list, '../Data/Artificial_Data/art4KO_list.rds')
+  
+  #Estimating paramater values from artificial data
+  
   out_art0 = oneligand_fit_list(art0WT_list, art0KO_list, label_WT = "art0_WT", label_KO = "art0_KO", celltype = 'art0')
   out_art1 = oneligand_fit_list(art1WT_list, art1KO_list, label_WT = "art1_WT", label_KO = "art1_KO", celltype = 'art1')
   out_art2 = oneligand_fit_list(art2WT_list, art2KO_list, label_WT = "art2_WT", label_KO = "art2_KO", celltype = 'art2')
@@ -231,7 +247,19 @@ if(!load_results){
   saveRDS(out_art2, '../Results/out_art2.rds')
   saveRDS(out_art3, '../Results/out_art3.rds')
   saveRDS(out_art4, '../Results/out_art4.rds')
+
 }else{
+  art0WT_list = readRDS('../Data/Artificial_Data/art0WT_list.rds')
+  art1WT_list = readRDS('../Data/Artificial_Data/art1WT_list.rds')
+  art2WT_list = readRDS('../Data/Artificial_Data/art2WT_list.rds')
+  art3WT_list = readRDS('../Data/Artificial_Data/art3WT_list.rds')
+  art4WT_list = readRDS('../Data/Artificial_Data/art4WT_list.rds')
+  art0KO_list = readRDS('../Data/Artificial_Data/art0KO_list.rds')
+  art1KO_list = readRDS('../Data/Artificial_Data/art1KO_list.rds')
+  art2KO_list = readRDS('../Data/Artificial_Data/art2KO_list.rds')
+  art3KO_list = readRDS('../Data/Artificial_Data/art3KO_list.rds')
+  art4KO_list = readRDS('../Data/Artificial_Data/art4KO_list.rds')
+  
   out_art0 = readRDS('../Results/out_art0.rds')
   out_art1 = readRDS('../Results/out_art1.rds')
   out_art2 = readRDS('../Results/out_art2.rds')
@@ -246,9 +274,7 @@ Supplemental Figure 3e
 ----------------------
 
 Show that artificial data mimics experimental data
-```{r}
-#Hap1WT_df = read_MFI_data('../Data/Experimental_Data/Antibody_Titrations.xlsx', sheet = 'Hap1 WT', molar_weight_AB = 146000)
-
+```{r,warning=F}
 ggplot(Hap1WT_df, aes(x = conc, y = MFI, shape = replicate)) +
   geom_point(size = 2, col = 'grey') + 
   labs(title = 'Hap1 WT') +
@@ -265,7 +291,7 @@ ggplot(art0WT_list[[10]], aes(x = conc, y = MFI, shape = replicate)) +
   theme_classic() + 
   theme(panel.grid = element_blank())
 
-ggsave('../Figures/Supporting_figures/art0.1WT_datareps.png', width = 4, height = 3, dpi = 500)
+ggsave('../Figures/Supporting_figures/art0.10WT_datareps.png', width = 4, height = 3, dpi = 500)
 ```
 
 
@@ -277,24 +303,24 @@ Supplemental Figure 3g-i
 #Prepare data for plotting
 
 dfs = list(out_art0, out_art1, out_art2, out_art3, out_art4)
-names(dfs) = paste0("df", 0:4)
+names(dfs) = paste0("set", 0:4)
 
 #Combine into long format
 long_df = bind_rows(dfs, .id = "source")
 
 #Prepare long format for k2
 k2_long = long_df %>%
-  filter(source %in% c('df0', 'df1', 'df2', 'df3')) %>%
+  filter(source %in% c('set0', 'set1', 'set2', 'set3')) %>%
   select(source, k2_WT, k2_KO) %>%
   pivot_longer(cols = c(k2_WT, k2_KO),
                names_to = "genotype",
                names_prefix = "k2_",
                values_to = "k2") %>%
-  mutate(pair = paste0("pair", source))
+  mutate(pair = source)
 
 #Same for max
 max_long = long_df %>%
-  filter(source %in% c('df0','df3', 'df4')) %>%
+  filter(source %in% c('set0','set3', 'set4')) %>%
   select(source, WT_max, KO_max) %>%
   pivot_longer(
     cols = c(WT_max, KO_max),
@@ -306,10 +332,10 @@ max_long = long_df %>%
       grepl("^WT", genotype) ~ "WT",
       grepl("^KO", genotype) ~ "KO"
     ),
-    pair = paste0("pair", source)
+    pair = paste0(source)
   )
 
-plot_single_metric(long_df[long_df$source != 'df2',], "SF", ref_line = 350, log_scale = T)
+plot_single_metric(long_df[long_df$source != 'set2',], "SF", ref_line = 350, log_scale = T)
 plot_single_metric(long_df, "AIC", log_scale = F)
 
 plot_paired_metric(k2_long, "k2", ylab = TeX('$K_D$ estimates'), ref_lineWT = 30, ref_lineKO = 60)  #No ref line
@@ -351,7 +377,6 @@ for (i in 1:length(k2s)) {
     })
   }
 }
-
 
 pheatmap(RMSEs, cluster_rows = F, cluster_cols = F, labels_row = 'k2', labels_col = 'SF')
 
